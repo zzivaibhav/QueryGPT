@@ -86,3 +86,7 @@ resource "aws_security_group" "llm_security_group" {
     Name = "llm_security_group"
   }
 }
+
+output "llm_instance_ip" {
+  value = aws_instance.llm_instance.public_ip
+}
