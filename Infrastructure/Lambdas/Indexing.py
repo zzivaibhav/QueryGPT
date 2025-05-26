@@ -1,10 +1,36 @@
 import os
 import json
+import base64
+import io
+from pypdf import PdfReader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Qdrant
 from langchain_core.documents import Document
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams
+
+def process_pdf_content(pdf_file):
+    # Modified to accept both file path and bytes
+    if isinstance(pdf_file, (str, bytes, io.BytesIO)):
+        pdf_reader = PdfReader(pdf_file)
+    else:
+        raise ValueError("Invalid PDF input format")
+    
+    # Extract text from PDF
+    text_content = ""
+    for page in pdf_reader.pages:
+        text_content += page.extract_text()
+    
+    # Split text into chunks
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=200,
+        length_function=len
+    )
+    
+    chunks = text_splitter.split_text(text_content)
+    return [Document(page_content=chunk) for chunk in chunks]
 
 def index_documents_to_qdrant(documents, collection_name):
     # 1. Read ENV for Qdrant connection
@@ -37,26 +63,49 @@ def index_documents_to_qdrant(documents, collection_name):
 
 def lambda_handler(event, context):
     try:
-        # Parse the incoming request body
-        body = json.loads(event['body']) if isinstance(event.get('body'), str) else event.get('body', {})
-        
-        # Get collection name and documents from the request
-        collection_name = body.get('collection_name', 'sql_schema_chunks')
-        schema_documents = body.get('documents', [])
-        
-        if not schema_documents:
+        # Check if the request contains multipart form data
+        if event.get('headers', {}).get('Content-Type', '').startswith('multipart/form-data'):
+            # Get the body content
+            body = event.get('body', '')
+            
+            # Parse multipart form data
+            import cgi
+            from io import BytesIO
+            
+            # Create environment for cgi
+            environ = {
+                'REQUEST_METHOD': 'POST',
+                'CONTENT_TYPE': event['headers']['Content-Type'],
+                'CONTENT_LENGTH': len(body)
+            }
+            
+            # Parse the multipart form data
+            form = cgi.FieldStorage(
+                fp=BytesIO(body.encode('utf-8')),
+                environ=environ,
+                keep_blank_values=True
+            )
+            
+            # Get collection name from form data or use default
+            collection_name = form.getvalue('collection_name', 'sql_schema_chunks')
+            
+            # Get the PDF file
+            if 'pdf_file' not in form:
+                return {
+                    'statusCode': 400,
+                    'body': json.dumps({'error': 'No PDF file provided'})
+                }
+            
+            pdf_file = BytesIO(form['pdf_file'].file.read())
+            
+        else:
             return {
                 'statusCode': 400,
-                'body': json.dumps({'error': 'No documents provided in the request'})
+                'body': json.dumps({'error': 'Content-Type must be multipart/form-data'})
             }
         
-        # Convert the incoming documents to Document objects
-        documents = [
-            Document(
-                page_content=doc.get('content', ''),
-                metadata=doc.get('metadata', {})
-            ) for doc in schema_documents
-        ]
+        # Process PDF and create documents
+        documents = process_pdf_content(pdf_file)
         
         # Index the documents
         result = index_documents_to_qdrant(documents, collection_name)
