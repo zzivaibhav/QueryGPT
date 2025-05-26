@@ -9,6 +9,14 @@ resource "aws_ecs_task_definition" "qdrant_task" {
   cpu                     = 1024
   memory                  = 2048
 
+  volume {
+    name = "qdrant-storage"
+    efs_volume_configuration {
+      file_system_id = data.aws_efs_file_system.qdrant_efs.id
+      root_directory = "/"
+    }
+  }
+
   container_definitions = jsonencode([
     {
       name      = "qdrant"
@@ -16,6 +24,13 @@ resource "aws_ecs_task_definition" "qdrant_task" {
       cpu       = 1024
       memory    = 2048
       essential = true
+      mountPoints = [
+        {
+          sourceVolume  = "qdrant-storage"
+          containerPath = "/qdrant/storage"
+          readOnly     = false
+        }
+      ]
       healthCheck = {
         command     = ["CMD-SHELL", "curl -f http://localhost:6333/healthz || exit 1"]
         interval    = 30
@@ -34,12 +49,14 @@ resource "aws_ecs_task_definition" "qdrant_task" {
   ])
 }
 
-//to do: Harden the security group rules
 resource "aws_security_group" "qdrant_sg" {
   name        = "qdrant-sg"
   description = "Security group for Qdrant service"
   vpc_id      = aws_vpc.main.id
 
+  tags = {
+    Name = "qdrant-sg"
+  }
   ingress {
     from_port   = 6333
     to_port     = 6333
@@ -76,20 +93,21 @@ resource "aws_security_group" "alb_sg" {
 }
 
 resource "aws_vpc" "main" {
+ 
+  tags = {
+    Name = "qdrant-vpc"
+  }
   cidr_block           = "10.0.0.0/16"
   enable_dns_hostnames = true
   enable_dns_support   = true
 }
 
-//to do: Add tags to the VPC
-//to do: Make the Subnet private as this is gonna be used for the Qdrant service
 resource "aws_subnet" "public" {
   count             = 2
   vpc_id            = aws_vpc.main.id
   cidr_block        = "10.0.${count.index + 1}.0/24"
   availability_zone = data.aws_availability_zones.available.names[count.index]
 }
-
 
 resource "aws_lb" "qdrant" {
   name               = "qdrant-alb"
@@ -157,7 +175,6 @@ resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 }
 
-//to do: Harden the route table rules
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
 
@@ -180,4 +197,15 @@ resource "aws_security_group_rule" "qdrant_from_alb" {
   protocol                = "tcp"
   source_security_group_id = aws_security_group.alb_sg.id
   security_group_id       = aws_security_group.qdrant_sg.id
+}
+
+data "aws_efs_file_system" "qdrant_efs" {
+  tags = {
+    Name = "qdrant-efs"
+  }
+  depends_on = [aws_efs_file_system.qdrant_efs]
+}
+
+output "Vector_DB_Endpoint" {
+  value = aws_lb.qdrant.dns_name
 }
