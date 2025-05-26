@@ -34,6 +34,7 @@ resource "aws_ecs_task_definition" "qdrant_task" {
   ])
 }
 
+//to do: Harden the security group rules
 resource "aws_security_group" "qdrant_sg" {
   name        = "qdrant-sg"
   description = "Security group for Qdrant service"
@@ -80,12 +81,15 @@ resource "aws_vpc" "main" {
   enable_dns_support   = true
 }
 
+//to do: Add tags to the VPC
+//to do: Make the Subnet private as this is gonna be used for the Qdrant service
 resource "aws_subnet" "public" {
   count             = 2
   vpc_id            = aws_vpc.main.id
   cidr_block        = "10.0.${count.index + 1}.0/24"
   availability_zone = data.aws_availability_zones.available.names[count.index]
 }
+
 
 resource "aws_lb" "qdrant" {
   name               = "qdrant-alb"
@@ -153,6 +157,7 @@ resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 }
 
+//to do: Harden the route table rules
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
 
