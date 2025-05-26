@@ -1,4 +1,5 @@
 import os
+import json
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Qdrant
 from langchain_core.documents import Document
@@ -34,17 +35,39 @@ def index_documents_to_qdrant(documents, collection_name):
 
     return {"status": "success", "collection": collection_name}
 
-# Example usage
-if __name__ == "__main__":
-    docs = [
-        Document(
-            page_content="Table: Customers\nColumns:\n  - customer_id (INT)\n  - name (VARCHAR)\n  - email (VARCHAR)",
-            metadata={"table": "Customers"}
-        ),
-        Document(
-            page_content="Table: Orders\nColumns:\n  - order_id (INT)\n  - customer_id (INT)\n  - order_date (DATE)\n  - total_amount (DECIMAL)",
-            metadata={"table": "Orders"}
-        ),
-    ]
-    # Make sure to set ENV before running
-    print(index_documents_to_qdrant(docs, "sql_schema_chunks"))
+def lambda_handler(event, context):
+    try:
+        # Parse the incoming request body
+        body = json.loads(event['body']) if isinstance(event.get('body'), str) else event.get('body', {})
+        
+        # Get collection name and documents from the request
+        collection_name = body.get('collection_name', 'sql_schema_chunks')
+        schema_documents = body.get('documents', [])
+        
+        if not schema_documents:
+            return {
+                'statusCode': 400,
+                'body': json.dumps({'error': 'No documents provided in the request'})
+            }
+        
+        # Convert the incoming documents to Document objects
+        documents = [
+            Document(
+                page_content=doc.get('content', ''),
+                metadata=doc.get('metadata', {})
+            ) for doc in schema_documents
+        ]
+        
+        # Index the documents
+        result = index_documents_to_qdrant(documents, collection_name)
+        
+        return {
+            'statusCode': 200,
+            'body': json.dumps(result)
+        }
+        
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'body': json.dumps({'error': str(e)})
+        }
