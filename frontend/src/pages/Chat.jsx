@@ -15,12 +15,12 @@ function Chat() {
     setIsLoading(true);
     
     try {
-      const response = await axios.post('http://localhost:5000/api/generate-query', {
-        identifier,
-        userQuery
+      const response = await axios.post('http://127.0.0.1:5000/api/query', {
+        collection_name: identifier,
+        query: userQuery
       });
-      
-      setSqlQuery(response.data.query);
+      console.log('Response:', response.data.result);
+      setSqlQuery(response.data.result);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to generate SQL query');
       console.error('Error:', err);
