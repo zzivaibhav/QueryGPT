@@ -13,7 +13,7 @@ def hello_world():
 def upload():
     return process_upload()
 
-@main_bp.route('/health')
+@main_bp.route('/health', methods=['GET'])
 def health_check():
     return {"status": "healthy"}, 200
 
