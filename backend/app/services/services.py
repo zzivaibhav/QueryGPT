@@ -46,7 +46,7 @@ def process_pdf_content(pdf_file):
         raise ValueError(f"Could not process PDF file: {str(e)}")
 
 def index_documents_to_qdrant(documents, collection_name):
-    QDRANT_HOST = os.environ.get("QDRANT_HOST", "127.0.0.1")
+    QDRANT_HOST = os.environ.get("QDRANT_HOST", "localhost")
     QDRANT_PORT = int(os.environ.get("QDRANT_PORT", "6333"))
 
     client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
