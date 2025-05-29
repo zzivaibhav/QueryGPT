@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import Lottie from 'lottie-react';
+import loaderData from '../assets/Loader animation.json';
 
 function Chat() {
   const [identifier, setIdentifier] = useState('');
@@ -100,10 +102,28 @@ function Chat() {
                 disabled={isLoading}
                 className="w-full px-4 py-3 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition duration-150 ease-in-out disabled:opacity-50"
               >
-                {isLoading ? 'Generating...' : 'Generate SQL Query'}
+                {isLoading ? 'Brewing Your SQL' : 'Generate SQL Query'}
               </button>
             </form>
           </div>
+
+          {isLoading && (
+            <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center">
+              <div className="bg-white p-8 rounded-xl shadow-xl max-w-md w-full">
+                <Lottie
+                  animationData={loaderData}
+                  loop={true}
+                  style={{ width: 200, height: 200, margin: '0 auto' }}
+                />
+                <div className="text-center mt-6 space-y-3">
+                  <p className="text-xl font-semibold text-gray-800">Brewing Your SQL Magic ✨</p>
+                  <p className="text-gray-600">
+                    Our AI wizards are crafting the perfect query just for you...
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {sqlQuery && (
             <div className="bg-white shadow-sm rounded-xl p-6">
