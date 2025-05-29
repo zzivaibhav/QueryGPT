@@ -5,6 +5,8 @@ function SchemaUpload({ onFileSelect, onDefinerChange }) {
   const [error, setError] = useState("");
   const [definer, setDefiner] = useState("");
   const [isDragging, setIsDragging] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
   const inputRef = useRef(null);
 
   const handleDrop = (e) => {
@@ -48,6 +50,41 @@ function SchemaUpload({ onFileSelect, onDefinerChange }) {
   const handleDragLeave = (e) => {
     e.preventDefault();
     setIsDragging(false);
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedFile || !definer) {
+      setUploadError("Please select a file and provide a schema identifier.");
+      return;
+    }
+
+    setIsLoading(true);
+    setUploadError("");
+
+    const formData = new FormData();
+    formData.append('pdf_file', selectedFile);
+    formData.append('collection_name', definer);
+
+    try {
+      const response = await fetch('http://127.0.0.1:5000/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      // Clear form after successful upload
+      setSelectedFile(null);
+      setDefiner("");
+      alert("Upload successful!");
+    } catch (err) {
+      setUploadError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -148,6 +185,39 @@ function SchemaUpload({ onFileSelect, onDefinerChange }) {
                 Adding an identifier helps you find this schema later
               </p>
             </div>
+          </div>
+
+          {uploadError && (
+            <div className="mt-4 text-red-500 bg-red-50 px-4 py-2 rounded-lg flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              {uploadError}
+            </div>
+          )}
+
+          <div className="flex justify-center">
+            <button
+              onClick={handleSubmit}
+              disabled={!selectedFile || !definer || isLoading}
+              className={`px-6 py-3 rounded-lg text-white font-medium 
+                ${(!selectedFile || !definer || isLoading)
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-purple-600 hover:bg-purple-700'
+                } transition-colors duration-200 flex items-center`}
+            >
+              {isLoading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Uploading...
+                </>
+              ) : (
+                'Upload Schema'
+              )}
+            </button>
           </div>
         </div>
       </div>
