@@ -1,0 +1,128 @@
+import React, { useState } from 'react';
+import axios from 'axios';
+
+function Chat() {
+  const [identifier, setIdentifier] = useState('');
+  const [userQuery, setUserQuery] = useState('');
+  const [sqlQuery, setSqlQuery] = useState('');
+  const [isCopied, setIsCopied] = useState(false);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+    
+    try {
+      const response = await axios.post('http://localhost:5000/api/generate-query', {
+        identifier,
+        userQuery
+      });
+      
+      setSqlQuery(response.data.query);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to generate SQL query');
+      console.error('Error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(sqlQuery);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-white py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-extrabold text-gray-900 mb-4">
+            SQL Query Assistant
+          </h1>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Generate SQL queries using natural language descriptions
+          </p>
+        </div>
+
+        <div className="space-y-8">
+          <div className="bg-white shadow-sm rounded-xl p-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-1">
+                  Schema Identifier
+                </label>
+                <input
+                  type="text"
+                  id="identifier"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-purple-500 focus:ring focus:ring-purple-200 focus:ring-opacity-50 transition duration-150 ease-in-out text-gray-900"
+                  placeholder="Enter your schema identifier"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="userQuery" className="block text-sm font-medium text-gray-700 mb-1">
+                  Describe Your Query
+                </label>
+                <textarea
+                  id="userQuery"
+                  value={userQuery}
+                  onChange={(e) => setUserQuery(e.target.value)}
+                  rows={4}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-purple-500 focus:ring focus:ring-purple-200 focus:ring-opacity-50 transition duration-150 ease-in-out text-gray-900"
+                  placeholder="Describe what data you want to retrieve..."
+                  required
+                />
+              </div>
+
+              {error && (
+                <div className="text-red-500 bg-red-50 px-4 py-2 rounded-lg flex items-center">
+                  <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full px-4 py-3 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition duration-150 ease-in-out disabled:opacity-50"
+              >
+                {isLoading ? 'Generating...' : 'Generate SQL Query'}
+              </button>
+            </form>
+          </div>
+
+          {sqlQuery && (
+            <div className="bg-white shadow-sm rounded-xl p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-medium text-gray-900">Generated SQL Query</h2>
+                <button
+                  onClick={copyToClipboard}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition duration-150 ease-in-out"
+                >
+                  {isCopied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+              <pre className="bg-gray-50 p-4 rounded-lg overflow-x-auto border border-gray-200">
+                <code className="text-sm text-gray-800">{sqlQuery}</code>
+              </pre>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default Chat;

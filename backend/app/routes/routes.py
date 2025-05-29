@@ -3,7 +3,6 @@ from app.services.services import get_hello_world, process_upload, QueryService
 
 # this is the blueprint for storing the views.
 main_bp = Blueprint('main', __name__)
-query_service = QueryService()
 
 @main_bp.route('/')
 def hello_world():
@@ -24,9 +23,14 @@ def process_query():
         data = request.get_json()
         if not data or 'query' not in data:
             return jsonify({"error": "Missing query in request"}), 400
-            
+        
         query_text = data['query']
+        collection_name = data.get('collection_name', 'sql_schema_chunks')
+        
+        # Create a new QueryService instance with the specified collection
+        query_service = QueryService(collection_name=collection_name)
         result = query_service.process_query(query_text)
+        
         return jsonify({"result": result}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500

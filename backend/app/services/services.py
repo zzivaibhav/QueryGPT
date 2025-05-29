@@ -103,8 +103,8 @@ def process_upload():
         return jsonify({'error': str(e)}), 500
 
 class QueryService:
-    def __init__(self, collection_name="sql_schema_chunks"):
-        self.collection_name = collection_name
+    def __init__(self, collection_name=None):
+        self.collection_name = collection_name or "sql_schema_chunks"  # Make it optional with default
         self.setup_qdrant()
         self.setup_embeddings()
         
