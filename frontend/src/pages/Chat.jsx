@@ -15,7 +15,9 @@ function Chat() {
     setIsLoading(true);
     
     try {
-      const response = await axios.post('http://127.0.0.1:5000/api/query', {
+      const server = import.meta.env.VITE_SERVER_URL;
+      console.log('Server URL:', server);
+      const response = await axios.post(`${server}/api/query`, {
         collection_name: identifier,
         query: userQuery
       });
@@ -63,7 +65,7 @@ function Chat() {
                   id="identifier"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-purple-500 focus:ring focus:ring-purple-200 focus:ring-opacity-50 transition duration-150 ease-in-out text-gray-900"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-purple-500 focus:ring focus:ring-purple-200 focus:ring-opacity-50 transition duration-150 ease-in-out text-gray-700 bg-white"
                   placeholder="Enter your schema identifier"
                   required
                 />
@@ -78,7 +80,7 @@ function Chat() {
                   value={userQuery}
                   onChange={(e) => setUserQuery(e.target.value)}
                   rows={4}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-purple-500 focus:ring focus:ring-purple-200 focus:ring-opacity-50 transition duration-150 ease-in-out text-gray-900"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-purple-500 focus:ring focus:ring-purple-200 focus:ring-opacity-50 transition duration-150 ease-in-out text-gray-700 bg-white"
                   placeholder="Describe what data you want to retrieve..."
                   required
                 />
@@ -109,7 +111,7 @@ function Chat() {
                 <h2 className="text-lg font-medium text-gray-900">Generated SQL Query</h2>
                 <button
                   onClick={copyToClipboard}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition duration-150 ease-in-out"
+                  className="px-4 py-2 bg-white border border-purple-300 rounded-lg text-sm font-medium text-white-600 hover:bg-purple-50 hover:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition duration-150 ease-in-out"
                 >
                   {isCopied ? 'Copied!' : 'Copy'}
                 </button>

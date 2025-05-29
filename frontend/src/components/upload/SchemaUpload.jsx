@@ -1,6 +1,8 @@
 import React, { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 function SchemaUpload({ onFileSelect, onDefinerChange }) {
+  const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState(null);
   const [error, setError] = useState("");
   const [definer, setDefiner] = useState("");
@@ -66,7 +68,8 @@ function SchemaUpload({ onFileSelect, onDefinerChange }) {
     formData.append('collection_name', definer);
 
     try {
-      const response = await fetch('http://127.0.0.1:5000/api/upload', {
+      const server = import.meta.env.VITE_SERVER_URL;
+      const response = await fetch(`${server}/api/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -79,7 +82,26 @@ function SchemaUpload({ onFileSelect, onDefinerChange }) {
       // Clear form after successful upload
       setSelectedFile(null);
       setDefiner("");
-      alert("Upload successful!");
+      
+      // Show a better success notification
+      const notification = document.createElement('div');
+      notification.className = 'fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded flex items-center shadow-lg transition-all duration-500';
+      notification.innerHTML = `
+        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+        </svg>
+        <span class="font-medium">Upload successful!</span>
+      `;
+      document.body.appendChild(notification);
+      
+      // Remove notification after 3 seconds
+      setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => notification.remove(), 500);
+      }, 3000);
+
+      // Navigate to the chat page
+      navigate('/chat');
     } catch (err) {
       setUploadError(err.message);
     } finally {
