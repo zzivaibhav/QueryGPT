@@ -5,7 +5,7 @@ Infrastructure setup and configuration for the SQL Schema Query Assistant.
 ## 🎯 Components
 
 - **Ollama**: Self-hosted LLM service
-- **Milvus**: Vector database
+- **Qdrant**: Vector database
 - **Frontend**: React application container
 - **Backend**: FastAPI service container
 - **Nginx**: Reverse proxy
@@ -19,7 +19,7 @@ services:
   - frontend
   - backend
   - ollama
-  - milvus
+  - qdrant
   - nginx
 ```
 
@@ -31,7 +31,7 @@ docker-compose up -d
 
 ## 💾 Data Persistence
 
-- Milvus data volume
+- Qdrant data volume
 - PDF storage volume
 - Model weights volume
 

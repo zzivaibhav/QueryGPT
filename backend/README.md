@@ -6,7 +6,7 @@ FastAPI-based backend service for processing queries and managing the RAG pipeli
 
 - **PDF Processing**: Extract and process SQL schema information from PDFs
 - **RAG Pipeline**: Implementation of Retrieval Augmented Generation
-- **Vector Storage**: Management of document embeddings in Milvus
+- **Vector Storage**: Management of document embeddings in Qdrant
 - **Query Processing**: Natural language to SQL query conversion
 - **API Endpoints**: RESTful API for frontend communication
 
@@ -16,7 +16,7 @@ FastAPI-based backend service for processing queries and managing the RAG pipeli
 - LangChain for RAG implementation
 - PyPDF2 for PDF processing
 - Ollama client for LLM integration
-- Milvus client for vector storage
+- Qdrant client for vector storage
 
 ## 🚀 Getting Started
 
