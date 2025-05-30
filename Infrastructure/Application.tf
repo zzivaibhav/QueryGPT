@@ -26,7 +26,7 @@ resource "aws_security_group" "app_security_group" {
 # Launch Template for Application instances
 resource "aws_launch_template" "app_launch_template" {
   name_prefix   = "app-launch-template"
-  image_id      = "ami-0c7217cdde317cfec"  # Amazon Linux 2023 AMI
+  image_id      = "ami-0953476d60561c955"  # Amazon Linux 2023 AMI
   instance_type = "t3.medium"
 
   network_interfaces {
@@ -36,13 +36,28 @@ resource "aws_launch_template" "app_launch_template" {
 
   user_data = base64encode(<<-EOF
               #!/bin/bash
-              yum update -y
-              yum install -y docker
+              set -e
+
+              # Add logging for debugging
+              exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+
+              # Update system packages
+              dnf update -y
+
+              # Install Docker
+              dnf install docker -y
+
+              # Start and enable Docker service
               systemctl start docker
               systemctl enable docker
-              docker pull vaibhav1476/querygpt:latest
-              docker run -d \
-                -p 8080:5000 \
+
+              # Add ec2-user to docker group
+              usermod -a -G docker ec2-user
+
+              # Pull and run the application container
+               docker pull vaibhav1476/querygpt:latest
+             docker run -d \
+                -p 8080:8080 \
                 -e QDRANT_HOST=${aws_lb.llm_alb.dns_name} \
                 -e QDRANT_PORT=6333 \
                 vaibhav1476/querygpt:latest
