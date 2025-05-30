@@ -74,10 +74,59 @@ resource "aws_ecs_service" "qdrant_service" {
   launch_type     = "FARGATE"
 
   network_configuration {
-
     subnets          = [aws_subnet.VectorDB_private_subnet.id]
     security_groups  = [aws_security_group.qdrant_sg.id]
     assign_public_ip = false
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.qdrant_tg.arn
+    container_name   = "qdrant"
+    container_port   = 6333
+  }
+}
+
+# Create internal load balancer for Qdrant
+resource "aws_lb" "qdrant_lb" {
+  name               = "qdrant-internal-lb"
+  internal           = true
+  load_balancer_type = "network"
+  subnets            = [aws_subnet.VectorDB_private_subnet.id]
+
+  enable_deletion_protection = false
+
+  tags = {
+    Name = "qdrant-internal-lb"
+  }
+}
+
+# Create target group for Qdrant
+resource "aws_lb_target_group" "qdrant_tg" {
+  name        = "qdrant-tg"
+  port        = 6333
+  protocol    = "TCP"
+  vpc_id      = aws_vpc.querygpt_vpc.id
+  target_type = "ip"
+
+  health_check {
+    enabled             = true
+    protocol            = "TCP"
+    interval            = 30
+    port                = "traffic-port"
+    healthy_threshold   = 3
+    unhealthy_threshold = 3
+  }
+}
+
+# Create listener for Qdrant load balancer
+resource "aws_lb_listener" "qdrant_listener" {
+  load_balancer_arn = aws_lb.qdrant_lb.arn
+  port              = 6333
+  protocol          = "TCP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.qdrant_tg.arn
   }
 }
 
@@ -147,4 +196,8 @@ output "qdrant_efs_id" {
 output "qdrant_access_instructions" {
   value = "To access Qdrant, use the task's private IP on port 6333. You can find this in the AWS Console under ECS > Clusters > qdrant-cluster > Tasks."
 }
- 
+
+output "qdrant_host" {
+  value       = aws_lb.qdrant_lb.dns_name
+  description = "DNS name of the internal load balancer for Qdrant"
+}
