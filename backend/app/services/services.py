@@ -10,8 +10,7 @@ from langchain_core.documents import Document
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams
 import io
-import ollama
-import time
+from langchain_community.llms import Ollama
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -105,9 +104,20 @@ def process_upload():
 class QueryService:
     def __init__(self, collection_name=None):
         self.collection_name = collection_name or "sql_schema_chunks"  # Make it optional with default
+        self.ollama_host = os.environ.get("OLLAMA_HOST", "http://localhost:11434") 
         self.setup_qdrant()
         self.setup_embeddings()
-        
+        self.setup_llm()  
+
+    def setup_llm(self):
+        # Configure the Ollama LLM connection
+        self.llm = Ollama(
+            base_url=self.ollama_host,  # Points to your EC2 instance
+            model="deepseek-coder:1.3b",
+            temperature=0.1,
+            top_p=0.9,
+            repeat_penalty=1.1
+        )
     def setup_qdrant(self):
         try:
             QDRANT_HOST = os.environ.get("QDRANT_HOST", "localhost")
@@ -155,23 +165,6 @@ class QueryService:
         SELECT column FROM table WHERE condition;
         """
         
-        response = ollama.chat(
-            model="codellama:7b",
-            messages=[
-                {
-                    "role": "system",
-                    "content": """You are a SQL expert. Follow these rules strictly:
-                    1. Generate only the SQL query
-                    2. No explanations or comments
-                    3. No thinking process
-                    4. Use exact column names from schema
-                    5. Must be valid MySQL syntax"""
-                },
-                {
-                    "role": "user",
-                    "content": final_prompt
-                }
-            ],
-        )
-        
-        return response['message']['content'].strip()
+        response = self.llm.invoke(final_prompt)
+        # The response is already a string, so we just need to strip whitespace
+        return response.strip()
