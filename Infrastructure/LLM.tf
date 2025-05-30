@@ -56,7 +56,7 @@ resource "aws_instance" "llm_instance" {
     echo "Updating system packages..."
     yum update -y
 
- # Install and configure Docker
+    # Install and configure Docker
     echo "Installing Docker..."
     yum install -y docker
     systemctl start docker
@@ -69,6 +69,7 @@ resource "aws_instance" "llm_instance" {
       --name queryapp \
       -p 8080:8080 \
       vaibhav1476/query
+
     echo "Installing Ollama..."
     curl -fsSL https://ollama.com/install.sh | sh
 
@@ -87,23 +88,7 @@ resource "aws_instance" "llm_instance" {
 
     echo "Pulling deepseek-coder:1.3b model (this may take a while)..."
     ollama pull deepseek-coder:1.3b
-    ollama run deepseek-coder:1.3b
-    
-    
-    # Output container network information to a file for reference
-    echo "Creating network binding information file..."
-    echo "---------------------------------------------" > /home/ec2-user/container_info.txt
-    echo "Query App Container Network Binding:" >> /home/ec2-user/container_info.txt
-    docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' queryapp >> /home/ec2-user/container_info.txt
-    echo "External access: http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):8080" >> /home/ec2-user/container_info.txt
-    echo "Internal access: http://$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4):8080" >> /home/ec2-user/container_info.txt
-    echo "---------------------------------------------" >> /home/ec2-user/container_info.txt
-    echo "Ollama Service:" >> /home/ec2-user/container_info.txt
-    echo "External access: http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):11434" >> /home/ec2-user/container_info.txt
-    echo "Internal access: http://$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4):11434" >> /home/ec2-user/container_info.txt
-    
-    # Make the file accessible to all users
-    chmod 644 /home/ec2-user/container_info.txt
+    ollama run deepseek-coder:1.3b 
   EOF
 
   tags = {
@@ -119,18 +104,4 @@ output "llm_instance_ip" {
 # Add output for application access
 output "app_access_url" {
   value = "http://${aws_instance.llm_instance.public_ip}:8080"
-}
-
-# Add output for container network binding information
-output "container_network_info" {
-  value = <<-EOT
-    # Connect to the EC2 instance:
-    ssh ec2-user@${aws_instance.llm_instance.public_ip}
-    
-    # View container network binding information:
-    cat /home/ec2-user/container_info.txt
-    
-    # Or use this command to get Docker container IP directly:
-    docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' queryapp
-  EOT
 }
