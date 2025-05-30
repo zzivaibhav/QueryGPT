@@ -139,7 +139,7 @@ resource "aws_ecs_service" "qdrant_service" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = [aws_subnet.VectorDB_private_subnet.id, aws_subnet.App_private_subnet.id]
+    subnets          = [aws_subnet.VectorDB_private_subnet.id ]
     security_groups  = [aws_security_group.qdrant_sg.id]
     assign_public_ip = false
   }

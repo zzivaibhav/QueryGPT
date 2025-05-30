@@ -35,32 +35,42 @@ resource "aws_launch_template" "app_launch_template" {
   }
 
   user_data = base64encode(<<-EOF
-              #!/bin/bash
-              set -e
+             #!/bin/bash
+# Install system updates and core dependencies
+yum update -y
+yum install -y git python3
 
-              # Add logging for debugging
-              exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+# (Optional, but recommended) Install pip for Python 3
+python3 -m ensurepip --upgrade
 
-              # Update system packages
-              dnf update -y
+# Clone your repository
+cd /home/ec2-user
+git clone https://github.com/zzivaibhav/QueryGPT.git
 
-              # Install Docker
-              dnf install docker -y
+# (Optional) Adjust permissions
+chown -R ec2-user:ec2-user /home/ec2-user/QueryGPT
 
-              # Start and enable Docker service
-              systemctl start docker
-              systemctl enable docker
+# Go into your repo
+cd /home/ec2-user/QueryGPT/backend
 
-              # Add ec2-user to docker group
-              usermod -a -G docker ec2-user
+# (Optional, but recommended) Set up Python virtual environment
+python3 -m venv venv
+source venv/bin/activate
 
-              # Pull and run the application container
-               docker pull vaibhav1476/querygpt:latest
-             docker run -d \
-                -p 8080:8080 \
-                -e QDRANT_HOST=${aws_lb.llm_alb.dns_name} \
-                -e QDRANT_PORT=6333 \
-                vaibhav1476/querygpt:latest
+# Install Python requirements (update requirements.txt in repo as needed)
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# Export Flask variables (update main.py if your entrypoint is different)
+export FLASK_APP=main.py
+export FLASK_ENV=production
+# (Optional: set host/port if your app runs on different ports)
+export FLASK_RUN_HOST=0.0.0.0
+export FLASK_RUN_PORT=8080
+
+# Run the Flask server in the background (stdout/stderr to a log file)
+nohup flask run --host=0.0.0.0 --port=8080 > flask.log 2>&1 &
+
               EOF
   )
 
@@ -111,7 +121,7 @@ resource "aws_autoscaling_group" "app_asg" {
   max_size           = 4
   min_size           = 1
   target_group_arns  = [aws_lb_target_group.app.arn]
-  vpc_zone_identifier = [aws_subnet.App_private_subnet.id]
+  vpc_zone_identifier = [aws_subnet.querygpt_public_subnet.id]  # Changed to public subnet
 
   launch_template {
     id      = aws_launch_template.app_launch_template.id

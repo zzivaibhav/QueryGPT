@@ -46,3 +46,6 @@ backend/
 - `POST /query`: Process natural language queries
 - `GET /schemas`: List available schemas
 - `GET /history`: Retrieve query history
+
+Pass the env of $OLLAMA_HOST as export OLLAMA_HOST=http://98.84.100.223
+:11434
