@@ -14,7 +14,6 @@ resource "aws_ecs_task_definition" "qdrant_task" {
     efs_volume_configuration {
       file_system_id = data.aws_efs_file_system.qdrant_efs.id
       root_directory = "/"
-      transit_encryption = "ENABLED"
     }
   }
 
@@ -32,13 +31,7 @@ resource "aws_ecs_task_definition" "qdrant_task" {
           readOnly     = false
         }
       ]
-      healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:6333/healthz || exit 1"]
-        interval    = 30
-        timeout     = 5
-        retries     = 3
-        startPeriod = 60
-      }
+       
       portMappings = [
         {
           containerPort = 6333
@@ -62,7 +55,7 @@ resource "aws_security_group" "qdrant_sg" {
     from_port   = 6333
     to_port     = 6333
     protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -70,64 +63,6 @@ resource "aws_security_group" "qdrant_sg" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-resource "aws_security_group" "alb_sg" {
-  name        = "qdrant-alb-sg"
-  description = "Security group for Qdrant ALB"
-  vpc_id      = aws_vpc.querygpt_vpc.id
-
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-resource "aws_lb" "qdrant" {
-  name               = "qdrant-alb"
-  internal           = true  # Change to internal
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb_sg.id]
-  subnets            = [aws_subnet.VectorDB_private_subnet.id, aws_subnet.App_private_subnet.id]  # Use private subnets
-}
-
-resource "aws_lb_target_group" "qdrant" {
-  name        = "qdrant-target-group"
-  port        = 6333
-  protocol    = "HTTP"
-  vpc_id      = aws_vpc.querygpt_vpc.id
-  target_type = "ip"
-
-  health_check {
-    enabled             = true
-    path                = "/healthz"
-    port               = "traffic-port"
-    healthy_threshold   = 2
-    unhealthy_threshold = 3
-    timeout             = 5
-    interval            = 30
-    matcher             = "200"
-  }
-}
-
-resource "aws_lb_listener" "qdrant" {
-  load_balancer_arn = aws_lb.qdrant.arn
-  port              = 80
-  protocol          = "HTTP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.qdrant.arn
   }
 }
 
@@ -135,35 +70,81 @@ resource "aws_ecs_service" "qdrant_service" {
   name            = "qdrant-service"
   cluster         = aws_ecs_cluster.qdrant_cluster.id
   task_definition = aws_ecs_task_definition.qdrant_task.arn
-  desired_count   = 2
+  desired_count   = 1
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = [aws_subnet.VectorDB_private_subnet.id ]
+
+    subnets          = [aws_subnet.VectorDB_private_subnet.id]
     security_groups  = [aws_security_group.qdrant_sg.id]
     assign_public_ip = false
   }
-
-  load_balancer {
-    target_group_arn = aws_lb_target_group.qdrant.arn
-    container_name   = "qdrant"
-    container_port   = 6333
-  }
-
-  depends_on = [aws_lb_listener.qdrant]
 }
 
 data "aws_availability_zones" "available" {
   state = "available"
 }
 
-data "aws_efs_file_system" "qdrant_efs" {
+# Create the EFS file system for Qdrant data persistence
+resource "aws_efs_file_system" "qdrant_efs" {
+  creation_token = "qdrant-efs"
+  performance_mode = "generalPurpose"
+  throughput_mode = "bursting"
+  encrypted = true
+  
   tags = {
     Name = "qdrant-efs"
   }
-  depends_on = [aws_efs_file_system.qdrant_efs]
 }
 
-output "Vector_DB_Endpoint" {
-  value = aws_lb.qdrant.dns_name
+# Create mount target for EFS in the public subnet
+resource "aws_efs_mount_target" "qdrant_efs_mount" {
+  file_system_id = aws_efs_file_system.qdrant_efs.id
+  subnet_id      = aws_subnet.VectorDB_private_subnet.id
+  security_groups = [aws_security_group.efs_sg.id]
 }
+
+# Security group for EFS
+resource "aws_security_group" "efs_sg" {
+  name        = "efs-security-group"
+  description = "Security group for EFS mount targets"
+  vpc_id      = aws_vpc.querygpt_vpc.id
+
+  ingress {
+    from_port   = 2049  # NFS port
+    to_port     = 2049
+    protocol    = "tcp"
+    security_groups = [aws_security_group.qdrant_sg.id]  # Allow access from Qdrant tasks
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "efs-security-group"
+  }
+}
+
+# Fix the data source to directly use the resource instead of searching by tag
+data "aws_efs_file_system" "qdrant_efs" {
+  file_system_id = aws_efs_file_system.qdrant_efs.id
+}
+
+output "Vector_DB_Info" {
+  value = "Qdrant service is running in ECS. Access it directly via tasks in the qdrant-cluster."
+  description = "Information about the Vector DB service"
+}
+
+output "qdrant_efs_id" {
+  value = aws_efs_file_system.qdrant_efs.id
+  description = "ID of the EFS file system used for Qdrant storage"
+}
+
+output "qdrant_access_instructions" {
+  value = "To access Qdrant, use the task's private IP on port 6333. You can find this in the AWS Console under ECS > Clusters > qdrant-cluster > Tasks."
+}
+ 

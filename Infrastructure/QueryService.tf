@@ -1,3 +1,4 @@
+/*
 resource "aws_ecs_task_definition" "query_task" {
   family                   = "query"
   requires_compatibilities = ["FARGATE"]
@@ -19,13 +20,6 @@ resource "aws_ecs_task_definition" "query_task" {
           protocol      = "tcp"
         }
       ]
-      # healthCheck = {
-      #   command     = ["CMD-SHELL", "curl -f http://localhost:8080/api/health || exit 1"]
-      #   interval    = 30
-      #   timeout     = 5
-      #   retries     = 3
-      #   startPeriod = 60
-      # }
     }
   ])
 }
@@ -117,3 +111,6 @@ resource "aws_ecs_service" "query_service" {
 output "Query_Service_Endpoint" {
   value = aws_lb.query_alb.dns_name
 }
+*/
+
+# This file is now empty as we're only using Qdrant and not deploying the query service separately
