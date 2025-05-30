@@ -52,7 +52,7 @@ resource "aws_route_table_association" "querygpt_public_subnet_association" {
 
 //EIP for the NAT gateway
 resource "aws_eip" "querygpt_nat_eip" {
-  vpc = true
+   
   tags = {
     Name = "querygpt_nat_eip"
   }
@@ -133,33 +133,9 @@ resource "aws_route_table_association" "VectorDB_private_subnet_association" {
 }
 
 //Private subnet for Application server
-resource "aws_subnet" "App_private_subnet" {
-  vpc_id            = aws_vpc.querygpt_vpc.id
-  cidr_block        = "10.0.4.0/24" 
-    availability_zone = "us-east-1a"  # Modify as needed
-    tags = {
-    Name = "App_private_subnet"
-    }
-}
+ 
 
 // Route table for the Application private subnet
-resource "aws_route_table" "App_private_route_table" {
-  vpc_id = aws_vpc.querygpt_vpc.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.querygpt_nat_gateway.id
-  }
-  route {
-    cidr_block = "10.0.0.0/16"
-    gateway_id = "local"
-  }
-  tags = {
-    Name = "App_private_route_table"
-  }
-}
+ 
 // Associate the Application private subnet with the route table
-resource "aws_route_table_association" "App_private_subnet_association" {
-  subnet_id      = aws_subnet.App_private_subnet.id
-  route_table_id = aws_route_table.App_private_route_table.id
-}
+ 
