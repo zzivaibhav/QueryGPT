@@ -12,6 +12,8 @@ crash.*.log
 .venv/
 
 backend/Frontend.tf
+
+Frontend.tf
 *.pyc
 __pycache__/
 
