@@ -50,6 +50,20 @@ resource "aws_route_table_association" "querygpt_public_subnet_association" {
   route_table_id = aws_route_table.querygpt_public_route_table.id
 }
 
+// standby public subnet for LB
+resource "aws_subnet" "querygpt_public_subnet_standby" {
+  vpc_id            = aws_vpc.querygpt_vpc.id
+  cidr_block        = "10.0.7.0/24"
+  availability_zone = "us-east-1b"  # Modify as needed
+  tags = {
+    Name = "querygpt_public_subnet_standby"
+  }
+}
+// Associate the standby public subnet with the route table
+resource "aws_route_table_association" "querygpt_public_subnet_association_standby" {
+  subnet_id      = aws_subnet.querygpt_public_subnet_standby.id
+  route_table_id = aws_route_table.querygpt_public_route_table.id
+}
 //EIP for the NAT gateway
 resource "aws_eip" "querygpt_nat_eip" {
    

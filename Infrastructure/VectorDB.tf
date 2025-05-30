@@ -183,21 +183,6 @@ data "aws_efs_file_system" "qdrant_efs" {
   file_system_id = aws_efs_file_system.qdrant_efs.id
 }
 
-output "Vector_DB_Info" {
-  value = "Qdrant service is running in ECS. Access it directly via tasks in the qdrant-cluster."
-  description = "Information about the Vector DB service"
-}
+ 
 
-output "qdrant_efs_id" {
-  value = aws_efs_file_system.qdrant_efs.id
-  description = "ID of the EFS file system used for Qdrant storage"
-}
-
-output "qdrant_access_instructions" {
-  value = "To access Qdrant, use the task's private IP on port 6333. You can find this in the AWS Console under ECS > Clusters > qdrant-cluster > Tasks."
-}
-
-output "qdrant_host" {
-  value       = aws_lb.qdrant_lb.dns_name
-  description = "DNS name of the internal load balancer for Qdrant"
-}
+ 

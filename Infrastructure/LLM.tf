@@ -14,7 +14,7 @@ resource "aws_security_group" "llm_security_group" {
     from_port   = 8080
     to_port     = 8080
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # Allow application access
+    security_groups = [aws_security_group.llm_lb_security_group.id]  # Allow traffic from load balancer only
   }
   ingress {
     from_port   =  22
@@ -33,11 +33,89 @@ resource "aws_security_group" "llm_security_group" {
   }
 }
 
+# Security Group for the Load Balancer
+resource "aws_security_group" "llm_lb_security_group" {
+  name        = "llm-lb-security-group"
+  description = "Security group for LLM Load Balancer"
+  vpc_id      = aws_vpc.querygpt_vpc.id
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]  # Allow HTTP traffic from anywhere
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]  # Allow all outbound traffic
+  }
+
+  tags = {
+    Name = "LLM-LB-Security-Group"
+  }
+}
+
+# Application Load Balancer
+resource "aws_lb" "llm_lb" {
+  name               = "llm-load-balancer"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.llm_lb_security_group.id]
+  subnets            = [aws_subnet.querygpt_public_subnet.id, aws_subnet.querygpt_public_subnet_standby.id]
+  idle_timeout       = 3600  # Set idle timeout to 1 hour (3600 seconds)
+
+  enable_deletion_protection = false
+
+  tags = {
+    Name = "LLM-Load-Balancer"
+  }
+}
+
+# Target Group for LLM instances
+resource "aws_lb_target_group" "llm_target_group" {
+  name     = "llm-target-group"
+  port     = 8080
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.querygpt_vpc.id
+  
+  health_check {
+    enabled             = true
+    interval            = 30
+    path                = "/api/health"
+    port                = "traffic-port"
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+  }
+}
+
+# Register LLM instance with the target group
+resource "aws_lb_target_group_attachment" "llm_target_group_attachment" {
+  target_group_arn = aws_lb_target_group.llm_target_group.arn
+  target_id        = aws_instance.llm_instance.id
+  port             = 8080
+}
+
+# Add listener for the load balancer
+resource "aws_lb_listener" "llm_listener" {
+  load_balancer_arn = aws_lb.llm_lb.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.llm_target_group.arn
+  }
+}
+
 # EC2 Instance
 resource "aws_instance" "llm_instance" {
   ami                    = "ami-0953476d60561c955"
-  instance_type          = "t3.large"
-  subnet_id              = aws_subnet.querygpt_public_subnet.id
+  instance_type          = "t3.xlarge"
+  subnet_id              = aws_subnet.LLM_private_subnet.id
   vpc_security_group_ids = [aws_security_group.llm_security_group.id]
   associate_public_ip_address = true
   iam_instance_profile   = aws_iam_instance_profile.llm_instance_profile.name
@@ -128,8 +206,8 @@ resource "aws_instance" "llm_instance" {
     sleep 10
 
     echo "Pulling deepseek-coder:1.3b model (this may take a while)..."
-    ollama pull deepseek-coder:1.3b
-    ollama run deepseek-coder:1.3b 
+     
+    ollama run codellama:7b 
   EOF
 
   tags = {

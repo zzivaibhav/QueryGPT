@@ -113,7 +113,7 @@ class QueryService:
         # Configure the Ollama LLM connection
         self.llm = Ollama(
             base_url=self.ollama_host,  # Points to your EC2 instance
-            model="deepseek-coder:1.3b",
+            model="codellama:7b",
             temperature=0.1,
             top_p=0.9,
             repeat_penalty=1.1
