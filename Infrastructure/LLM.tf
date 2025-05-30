@@ -40,6 +40,7 @@ resource "aws_instance" "llm_instance" {
   subnet_id              = aws_subnet.querygpt_public_subnet.id
   vpc_security_group_ids = [aws_security_group.llm_security_group.id]
   associate_public_ip_address = true
+  iam_instance_profile   = aws_iam_instance_profile.llm_instance_profile.name
 
   root_block_device {
     volume_size = 30
@@ -62,12 +63,52 @@ resource "aws_instance" "llm_instance" {
     systemctl start docker
     systemctl enable docker
 
+    # Install AWS CLI and jq if not already installed
+    echo "Installing AWS CLI and jq..."
+    yum install -y aws-cli jq
+
+    # Fetching the secrets 
+    echo "Retrieving secrets from Secrets Manager..."
+    SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id prod/QGpt --region us-east-1 | jq -r '.SecretString')
+    
+    # Extract environment variables from secret JSON
+    echo "DEBUG: Secret JSON content:"
+    echo "$SECRET_JSON" | jq '.'
+    
+    # Set environment variables with default fallbacks if not found
+    OLLAMA_HOST=$(echo "$SECRET_JSON" | jq -r '.OLLAMA_HOST // "http://localhost:11434"')
+    QDRANT_HOST=$(echo "$SECRET_JSON" | jq -r '.QDRANT_HOST // "http://'"${aws_lb.qdrant_lb.dns_name}"'"')
+    QDRANT_PORT=$(echo "$SECRET_JSON" | jq -r '.QDRANT_PORT // "6333"')
+
+    # Validate secrets - use defaults if necessary, but don't fail
+    if [ "$OLLAMA_HOST" = "null" ]; then
+        echo "⚠️ WARNING: OLLAMA_HOST is null. Using default: http://localhost:11434"
+        OLLAMA_HOST="http://localhost:11434"
+    fi
+    
+    if [ "$QDRANT_HOST" = "null" ]; then
+        echo "⚠️ WARNING: QDRANT_HOST is null. Using load balancer DNS name instead."
+        QDRANT_HOST="http://${aws_lb.qdrant_lb.dns_name}"
+    fi
+    
+    if [ "$QDRANT_PORT" = "null" ]; then
+        echo "⚠️ WARNING: QDRANT_PORT is null. Using default: 6333"
+        QDRANT_PORT="6333"
+    fi
+
+    echo "✅ Using OLLAMA_HOST: $OLLAMA_HOST"
+    echo "✅ Using QDRANT_HOST: $QDRANT_HOST" 
+    echo "✅ Using QDRANT_PORT: $QDRANT_PORT"
+
     # Pull and run the application container
     echo "Pulling and running the application container..."
     docker pull vaibhav1476/query
     docker run -d \
       --name queryapp \
       -p 8080:8080 \
+      -e OLLAMA_HOST=$OLLAMA_HOST \
+      -e QDRANT_HOST=$QDRANT_HOST \
+      -e QDRANT_PORT=$QDRANT_PORT \
       vaibhav1476/query
 
     echo "Installing Ollama..."
@@ -94,6 +135,56 @@ resource "aws_instance" "llm_instance" {
   tags = {
     Name = "LLM-App-Combined-Instance"
   }
+}
+
+# IAM role for the EC2 instance
+resource "aws_iam_role" "llm_instance_role" {
+  name = "llm-instance-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = "sts:AssumeRole",
+        Effect = "Allow",
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+# IAM policy to allow access to Secrets Manager
+resource "aws_iam_policy" "secrets_access_policy" {
+  name        = "secrets-access-policy"
+  description = "Policy to allow access to specific secrets in Secrets Manager"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ],
+        Effect   = "Allow",
+        Resource = data.aws_secretsmanager_secret.llm_ip.arn
+      }
+    ]
+  })
+}
+
+# Attach the policy to the role
+resource "aws_iam_role_policy_attachment" "secrets_policy_attachment" {
+  role       = aws_iam_role.llm_instance_role.name
+  policy_arn = aws_iam_policy.secrets_access_policy.arn
+}
+
+# Create instance profile
+resource "aws_iam_instance_profile" "llm_instance_profile" {
+  name = "llm-instance-profile"
+  role = aws_iam_role.llm_instance_role.name
 }
 
 # Output the instance public IP
