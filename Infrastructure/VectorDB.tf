@@ -52,7 +52,7 @@ resource "aws_ecs_task_definition" "qdrant_task" {
 resource "aws_security_group" "qdrant_sg" {
   name        = "qdrant-sg"
   description = "Security group for Qdrant service"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = aws_vpc.querygpt_vpc.id
 
   tags = {
     Name = "qdrant-sg"
@@ -61,7 +61,7 @@ resource "aws_security_group" "qdrant_sg" {
     from_port   = 6333
     to_port     = 6333
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["10.0.0.0/16"]
   }
 
   egress {
@@ -75,13 +75,13 @@ resource "aws_security_group" "qdrant_sg" {
 resource "aws_security_group" "alb_sg" {
   name        = "qdrant-alb-sg"
   description = "Security group for Qdrant ALB"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = aws_vpc.querygpt_vpc.id
 
   ingress {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["10.0.0.0/16"]
   }
 
   egress {
@@ -92,36 +92,19 @@ resource "aws_security_group" "alb_sg" {
   }
 }
 
-resource "aws_vpc" "main" {
- 
-  tags = {
-    Name = "qdrant-vpc"
-  }
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_hostnames = true
-  enable_dns_support   = true
-}
-
-resource "aws_subnet" "public" {
-  count             = 2
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = "10.0.${count.index + 1}.0/24"
-  availability_zone = data.aws_availability_zones.available.names[count.index]
-}
-
 resource "aws_lb" "qdrant" {
   name               = "qdrant-alb"
-  internal           = false
+  internal           = true  # Change to internal
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb_sg.id]
-  subnets           = aws_subnet.public[*].id
+  subnets            = [aws_subnet.VectorDB_private_subnet.id, aws_subnet.App_private_subnet.id]  # Use private subnets
 }
 
 resource "aws_lb_target_group" "qdrant" {
   name        = "qdrant-target-group"
   port        = 6333
   protocol    = "HTTP"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = aws_vpc.querygpt_vpc.id
   target_type = "ip"
 
   health_check {
@@ -151,13 +134,13 @@ resource "aws_ecs_service" "qdrant_service" {
   name            = "qdrant-service"
   cluster         = aws_ecs_cluster.qdrant_cluster.id
   task_definition = aws_ecs_task_definition.qdrant_task.arn
-  desired_count   = 1
+  desired_count   = 2
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = aws_subnet.public[*].id
+    subnets          = [aws_subnet.VectorDB_private_subnet.id, aws_subnet.App_private_subnet.id]
     security_groups  = [aws_security_group.qdrant_sg.id]
-    assign_public_ip = true
+    assign_public_ip = false
   }
 
   load_balancer {
@@ -165,38 +148,12 @@ resource "aws_ecs_service" "qdrant_service" {
     container_name   = "qdrant"
     container_port   = 6333
   }
+
+  depends_on = [aws_lb_listener.qdrant]
 }
 
 data "aws_availability_zones" "available" {
   state = "available"
-}
-
-resource "aws_internet_gateway" "main" {
-  vpc_id = aws_vpc.main.id
-}
-
-resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.main.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.main.id
-  }
-}
-
-resource "aws_route_table_association" "public" {
-  count          = 2
-  subnet_id      = aws_subnet.public[count.index].id
-  route_table_id = aws_route_table.public.id
-}
-
-resource "aws_security_group_rule" "qdrant_from_alb" {
-  type                     = "ingress"
-  from_port               = 6333
-  to_port                 = 6333
-  protocol                = "tcp"
-  source_security_group_id = aws_security_group.alb_sg.id
-  security_group_id       = aws_security_group.qdrant_sg.id
 }
 
 data "aws_efs_file_system" "qdrant_efs" {
