@@ -14,6 +14,7 @@ resource "aws_ecs_task_definition" "qdrant_task" {
     efs_volume_configuration {
       file_system_id = data.aws_efs_file_system.qdrant_efs.id
       root_directory = "/"
+      transit_encryption = "ENABLED"
     }
   }
 

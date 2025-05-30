@@ -8,10 +8,10 @@ resource "aws_efs_file_system" "qdrant_efs" {
 }
 
 resource "aws_efs_mount_target" "qdrant_efs_mount" {
-  count           = 1  # Changed from 2 to 1 since we only have one subnet
-  file_system_id  = aws_efs_file_system.qdrant_efs.id
-  subnet_id       = aws_subnet.VectorDB_private_subnet.id
-  security_groups = [aws_security_group.efs_sg.id]
+  for_each         = toset([aws_subnet.VectorDB_private_subnet.id, aws_subnet.App_private_subnet.id])
+  file_system_id   = aws_efs_file_system.qdrant_efs.id
+  subnet_id        = each.value
+  security_groups  = [aws_security_group.efs_sg.id]
 }
 
 resource "aws_security_group" "efs_sg" {
