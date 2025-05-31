@@ -74,6 +74,7 @@ resource "aws_lb" "llm_lb" {
   }
 }
 
+
 # Target Group for LLM instances
 resource "aws_lb_target_group" "llm_target_group" {
   name     = "llm-target-group"
