@@ -19,15 +19,37 @@ function Chat() {
     try {
       const server = import.meta.env.VITE_SERVER_URL;
       console.log('Server URL:', server);
+      console.log('Making request to:', `${server}/api/query`);
+      
       const response = await axios.post(`${server}/api/query`, {
         collection_name: identifier,
         query: userQuery
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
+      
       console.log('Response:', response.data.result);
       setSqlQuery(response.data.result);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to generate SQL query');
-      console.error('Error:', err);
+      console.error('Error details:', err);
+      
+      if (err.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.error('Response data:', err.response.data);
+        console.error('Response status:', err.response.status);
+        console.error('Response headers:', err.response.headers);
+        setError(`Server error: ${err.response.status} - ${err.response?.data?.message || err.message}`);
+      } else if (err.request) {
+        // The request was made but no response was received
+        console.error('No response received:', err.request);
+        setError('No response from server. Please check your network connection.');
+      } else {
+        // Something happened in setting up the request
+        setError(`Error: ${err.message}`);
+      }
     } finally {
       setIsLoading(false);
     }
