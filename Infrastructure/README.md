@@ -15,6 +15,21 @@ Infrastructure as Code (IaC) setup and configuration for deploying and managing 
 <img src="https://www.datocms-assets.com/2885/1620155116-brandhcterraformverticalcolor.svg" alt="Terraform Logo" height="150">
 </div>
 
+## 🏛️ System Architecture
+
+<div align="center">
+  <img src="./Architecture.png" alt="QueryGPT Cloud Architecture" style="width: 100%; max-width: 900px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+  <p><em>Comprehensive AWS cloud infrastructure diagram showing the complete QueryGPT deployment architecture</em></p>
+</div>
+
+The architecture diagram above illustrates our production deployment on AWS Cloud, featuring:
+
+- **Multi-AZ Deployment**: High availability across availability zones
+- **Security Groups**: Fine-grained access control between components
+- **Load Balancing**: Traffic distribution and failover management
+- **Private/Public Subnets**: Network isolation for enhanced security
+- **Monitoring**: Comprehensive metrics collection for all system components
+
 ## 🎯 Infrastructure Components
 
 <table>
