@@ -328,12 +328,6 @@ output "llm_instance_ip" {
   value = aws_instance.llm_instance.public_ip
 }
 
-# Add output for application access
-output "app_access_url" {
-  value = "http://${aws_instance.llm_instance.public_ip}:8080"
-}
+ 
 
-# Add output for secure application access
-output "app_secure_access_url" {
-  value = "https://${aws_lb.llm_lb.dns_name}"
-}
+ 

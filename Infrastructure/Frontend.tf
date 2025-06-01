@@ -28,9 +28,11 @@ resource "aws_amplify_app" "frontend" {
   enable_branch_auto_build   = true
   enable_branch_auto_deletion = true
 
+
   # Environment variables
   environment_variables = {
     ENV = "production"
+    VITE_SERVER_URL = "https://${aws_lb.llm_lb.dns_name}"
   }
 }
 
@@ -50,9 +52,9 @@ variable "github_access_token" {
   description = "GitHub personal access token"
   type        = string
   sensitive   = true
- }
+}
 
 # Output the Amplify app URL
-output "amplify_app_url" {
+output "Application_URL" {
   value = "https://${aws_amplify_branch.main.branch_name}.${aws_amplify_app.frontend.default_domain}"
 }
