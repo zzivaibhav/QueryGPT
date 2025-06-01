@@ -15,6 +15,21 @@ A modern, responsive React-based frontend application that provides an intuitive
 <img src="https://reactjs.org/logo-og.png" alt="React Logo" height="150">
 </div>
 
+## 📱 Application Screenshots
+
+<div align="center">
+  <div style="display: flex; justify-content: space-around; margin-bottom: 20px;">
+    <div style="width: 48%;">
+      <img src="./Upload.png" alt="Schema Upload Interface" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+      <p><em>Schema Upload Interface: Upload and manage your database schema documents</em></p>
+    </div>
+    <div style="width: 48%;">
+      <img src="./Chat.png" alt="Query Assistant Interface" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+      <p><em>Query Assistant: Natural language to SQL conversion interface</em></p>
+    </div>
+  </div>
+</div>
+
 ## 🎯 User Experience Features
 
 - **📤 Intuitive Document Upload**: Drag-and-drop interface with visual feedback for schema document upload
