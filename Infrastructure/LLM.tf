@@ -46,6 +46,13 @@ resource "aws_security_group" "llm_lb_security_group" {
     cidr_blocks = ["0.0.0.0/0"]  # Allow HTTP traffic from anywhere
   }
 
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]  # Allow HTTPS traffic from anywhere
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -100,11 +107,61 @@ resource "aws_lb_target_group_attachment" "llm_target_group_attachment" {
   port             = 8080
 }
 
-# Add listener for the load balancer
+# SSL Certificate - Self-signed for development/testing
+resource "tls_private_key" "self_signed_key" {
+  algorithm = "RSA"
+  rsa_bits  = 2048
+}
+
+resource "tls_self_signed_cert" "self_signed_cert" {
+  private_key_pem = tls_private_key.self_signed_key.private_key_pem
+
+  subject {
+    common_name  = "querygpt.internal"
+    organization = "QueryGPT Internal"
+  }
+
+  validity_period_hours = 8760  # 1 year
+
+  allowed_uses = [
+    "key_encipherment",
+    "digital_signature",
+    "server_auth",
+  ]
+}
+
+resource "aws_acm_certificate" "ssl_certificate" {
+  private_key      = tls_private_key.self_signed_key.private_key_pem
+  certificate_body = tls_self_signed_cert.self_signed_cert.cert_pem
+
+  tags = {
+    Name = "LLM-Self-Signed-SSL-Certificate"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Add HTTP listener for the load balancer (retained)
 resource "aws_lb_listener" "llm_listener" {
   load_balancer_arn = aws_lb.llm_lb.arn
   port              = 80
   protocol          = "HTTP"
+
+  default_action {
+    type = "forward"
+    target_group_arn = aws_lb_target_group.llm_target_group.arn
+  }
+}
+
+# Add HTTPS listener for the load balancer
+resource "aws_lb_listener" "llm_https_listener" {
+  load_balancer_arn = aws_lb.llm_lb.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  certificate_arn   = aws_acm_certificate.ssl_certificate.arn
 
   default_action {
     type             = "forward"
@@ -274,4 +331,9 @@ output "llm_instance_ip" {
 # Add output for application access
 output "app_access_url" {
   value = "http://${aws_instance.llm_instance.public_ip}:8080"
+}
+
+# Add output for secure application access
+output "app_secure_access_url" {
+  value = "https://${aws_lb.llm_lb.dns_name}"
 }
