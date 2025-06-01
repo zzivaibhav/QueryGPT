@@ -12,13 +12,6 @@ def create_app():
         "allow_headers": ["Content-Type", "Authorization", "Accept"]
     }})
     
-    # Add OPTIONS request handler for all routes
-    @app.after_request
-    def after_request(response):
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,Accept')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-        return response
     
     app.register_blueprint(main_bp, url_prefix='/api')
     
